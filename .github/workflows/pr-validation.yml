@@ -1,0 +1,50 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, preprod, uat, qa]
+
+jobs:
+  resolve-env:
+    runs-on: ubuntu-latest
+    outputs: { environment: ${{ steps.map.outputs.environment }} }
+    steps:
+      - id: map
+        run: |
+          case "${{ github.base_ref }}" in
+            qa) echo "environment=qa" >> "$GITHUB_OUTPUT" ;;
+            uat) echo "environment=uat" >> "$GITHUB_OUTPUT" ;;
+            preprod) echo "environment=preprod" >> "$GITHUB_OUTPUT" ;;
+            main) echo "environment=production" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: "npm" }
+      - run: npm ci
+      - run: npm run prettier:verify
+      - run: npm run lint
+      - run: npm run test:unit:coverage
+
+  validate:
+    needs: [resolve-env, quality]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-env.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: ./.github/actions/setup-sfdx
+        with:
+          client-id: ${{ secrets.SF_CLIENT_ID }}
+          jwt-key: ${{ secrets.SF_JWT_KEY }}
+          username: ${{ secrets.SF_USERNAME }}
+          instance-url: ${{ secrets.SF_INSTANCE_URL }}
+      - run: |
+          sf sgd source delta --to HEAD --from "origin/${{ github.base_ref }}" \
+            --output-dir delta --source-dir force-app
+      - run: |
+          sf project deploy validate --manifest delta/package/package.xml \
+            --test-level RunLocalTests --wait 60

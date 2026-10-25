@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "lint": "eslint --no-error-on-unmatched-pattern \"**/{aura,lwc}/**/*.js\"",
+    "prettier:verify": "prettier --check \"**/*.{cls,js,html,xml,json,md,yml}\"",
+    "test:unit:coverage": "sfdx-lwc-jest --coverage --passWithNoTests"
+  }
+}
