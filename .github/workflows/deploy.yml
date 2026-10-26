@@ -8,7 +8,8 @@ on:
 jobs:
   resolve-env:
     runs-on: ubuntu-latest
-    outputs: { environment: ${{ steps.map.outputs.environment }} }
+    outputs:
+      environment: ${{ steps.map.outputs.environment }}
     steps:
       - id: map
         run: |
