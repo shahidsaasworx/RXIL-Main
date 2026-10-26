@@ -5,6 +5,7 @@
     "test:unit:coverage": "sfdx-lwc-jest --coverage --passWithNoTests"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "prettier": "^3.9.10"
   }
 }
