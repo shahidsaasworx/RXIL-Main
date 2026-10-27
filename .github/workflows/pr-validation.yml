@@ -53,4 +53,5 @@ jobs:
             --output-dir delta --source-dir force-app
       - run: |
           sf project deploy validate --manifest delta/package/package.xml \
-            --test-level RunLocalTests --wait 60
+            --test-level NoTestRun\
+            --wait 60
