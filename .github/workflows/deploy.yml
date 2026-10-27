@@ -1,31 +1,45 @@
-name: Deploy
+name: PR Validation
 
 on:
-  push:
-    branches: [main, preprod, uat, qa]
-    paths: ["force-app/**", "manifest/**"]
+  pull_request:
+    branches: [main, uat, qa]
 
 jobs:
   resolve-env:
     runs-on: ubuntu-latest
-    outputs: { environment: ${{ steps.map.outputs.environment }} }
+    outputs:
+      environment: ${{ steps.map.outputs.environment }}
     steps:
       - id: map
+        shell: bash
         run: |
-          case "${{ github.ref_name }}" in
+          case "${{ github.base_ref }}" in
             qa) echo "environment=qa" >> "$GITHUB_OUTPUT" ;;
             uat) echo "environment=uat" >> "$GITHUB_OUTPUT" ;;
-            preprod) echo "environment=preprod" >> "$GITHUB_OUTPUT" ;;
             main) echo "environment=production" >> "$GITHUB_OUTPUT" ;;
           esac
 
-  deploy:
-    needs: resolve-env
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run prettier:verify
+      - run: npm run lint
+      - run: npm run test:unit:coverage
+
+  validate:
+    needs: [resolve-env, quality]
     runs-on: ubuntu-latest
     environment: ${{ needs.resolve-env.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-sfdx
         with:
           client-id: ${{ secrets.SF_CLIENT_ID }}
@@ -33,15 +47,8 @@ jobs:
           username: ${{ secrets.SF_USERNAME }}
           instance-url: ${{ secrets.SF_INSTANCE_URL }}
       - run: |
-          sf sgd source delta --to HEAD --from "HEAD~1" \
+          sf sgd source delta --to HEAD --from "origin/${{ github.base_ref }}" \
             --output-dir delta --source-dir force-app
       - run: |
-          sf project deploy start --manifest delta/package/package.xml \
+          sf project deploy validate --manifest delta/package/package.xml \
             --test-level RunLocalTests --wait 60
-      - run: |
-          if grep -q "<types>" delta/destructiveChanges/destructiveChanges.xml; then
-            sf project deploy start \
-              --manifest delta/destructiveChanges/package.xml \
-              --post-destructive-changes delta/destructiveChanges/destructiveChanges.xml \
-              --wait 60
-          fi
