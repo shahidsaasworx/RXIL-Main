@@ -1,15 +1,10 @@
 name: "Setup SFDX + Auth (JWT Bearer)"
 inputs:
-  client-id:
-    { required: true }
-  jwt-key:
-    { required: true }
-  username:
-    { required: true }
-  instance-url:
-    { required: true }
-  alias:
-    { default: "targetOrg" }
+  client-id: { required: true }
+  jwt-key: { required: true }
+  username: { required: true }
+  instance-url: { required: true }
+  alias: { default: "targetOrg" }
 
 runs:
   using: "composite"

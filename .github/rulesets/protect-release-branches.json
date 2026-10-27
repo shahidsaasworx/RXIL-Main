@@ -6,24 +6,25 @@
   "conditions": {
     "ref_name": {
       "exclude": [],
-      "include": [
-        "refs/heads/qa",
-        "refs/heads/uat",
-        "refs/heads/preprod",
-        "refs/heads/main"
-      ]
+      "include": ["refs/heads/qa", "refs/heads/uat", "refs/heads/main"]
     }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
     {
       "type": "pull_request",
       "parameters": {
+        "allowed_merge_methods": ["merge", "squash", "rebase"],
         "required_approving_review_count": 1,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
-        "require_last_push_approval": false
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true
       }
     },
     {
@@ -31,8 +32,12 @@
       "parameters": {
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
-          { "context": "quality" },
-          { "context": "validate" }
+          {
+            "context": "quality"
+          },
+          {
+            "context": "validate"
+          }
         ]
       }
     }

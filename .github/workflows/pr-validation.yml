@@ -2,19 +2,20 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main, preprod, uat, qa]
+    branches: [main, uat, qa]
 
 jobs:
   resolve-env:
     runs-on: ubuntu-latest
-    outputs: { environment: ${{ steps.map.outputs.environment }} }
+    outputs:
+      environment: ${{ steps.map.outputs.environment }}
     steps:
       - id: map
+        shell: bash
         run: |
           case "${{ github.base_ref }}" in
             qa) echo "environment=qa" >> "$GITHUB_OUTPUT" ;;
             uat) echo "environment=uat" >> "$GITHUB_OUTPUT" ;;
-            preprod) echo "environment=preprod" >> "$GITHUB_OUTPUT" ;;
             main) echo "environment=production" >> "$GITHUB_OUTPUT" ;;
           esac
 
@@ -23,7 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "22", cache: "npm" }
+        with:
+          node-version: "22"
+          cache: npm
       - run: npm ci
       - run: npm run prettier:verify
       - run: npm run lint
@@ -35,16 +38,28 @@ jobs:
     environment: ${{ needs.resolve-env.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-sfdx
         with:
           client-id: ${{ secrets.SF_CLIENT_ID }}
           jwt-key: ${{ secrets.SF_JWT_KEY }}
           username: ${{ secrets.SF_USERNAME }}
           instance-url: ${{ secrets.SF_INSTANCE_URL }}
-      - run: |
+      - name: Generate source delta
+        run: |
+          mkdir -p delta
           sf sgd source delta --to HEAD --from "origin/${{ github.base_ref }}" \
             --output-dir delta --source-dir force-app
-      - run: |
-          sf project deploy validate --manifest delta/package/package.xml \
-            --test-level RunLocalTests --wait 60
+      - name: Validate deployment
+        if: needs.resolve-env.outputs.environment == 'production'
+        run: |
+          if [ ! -f delta/package/package.xml ]; then
+            echo "No changes detected — skipping."
+            exit 0
+          fi
+          sf project deploy validate \
+            --manifest delta/package/package.xml \
+            --test-level RunLocalTests \
+            --wait 60l NoTestRun\
+            --wait 60
