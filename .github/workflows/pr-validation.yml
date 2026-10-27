@@ -51,7 +51,15 @@ jobs:
           mkdir -p delta
           sf sgd source delta --to HEAD --from "origin/${{ github.base_ref }}" \
             --output-dir delta --source-dir force-app
-      - run: |
-          sf project deploy validate --manifest delta/package/package.xml \
-            --test-level NoTestRun\
+      - name: Validate deployment
+        if: needs.resolve-env.outputs.environment == 'production'
+        run: |
+          if [ ! -f delta/package/package.xml ]; then
+            echo "No changes detected — skipping."
+            exit 0
+          fi
+          sf project deploy validate \
+            --manifest delta/package/package.xml \
+            --test-level RunLocalTests \
+            --wait 60l NoTestRun\
             --wait 60
