@@ -46,7 +46,8 @@ jobs:
           jwt-key: ${{ secrets.SF_JWT_KEY }}
           username: ${{ secrets.SF_USERNAME }}
           instance-url: ${{ secrets.SF_INSTANCE_URL }}
-      - run: |
+      - name: Generate source delta
+        run: |
           mkdir -p delta
           sf sgd source delta --to HEAD --from "origin/${{ github.base_ref }}" \
             --output-dir delta --source-dir force-app
